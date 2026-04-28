@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -35,5 +35,24 @@ apiClient.interceptors.response.use(
     return Promise.reject(error)
   }
 )
+
+/**
+ * Check the backend health status
+ * @returns {Promise<{status: string, message: string}>}
+ */
+export const checkBackendHealth = async () => {
+  try {
+    const response = await apiClient.get('/health')
+    return {
+      status: 'healthy',
+      message: response.data?.message || 'Backend is running'
+    }
+  } catch (error) {
+    return {
+      status: 'unhealthy',
+      message: error.message || 'Failed to connect to backend'
+    }
+  }
+}
 
 export default apiClient
