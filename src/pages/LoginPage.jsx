@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { authService } from '../services/authService'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -8,6 +9,7 @@ export default function LoginPage() {
     password: ''
   })
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -15,17 +17,32 @@ export default function LoginPage() {
       ...prev,
       [name]: value
     }))
+    // Clear error when user starts typing
+    if (error) {
+      setError('')
+    }
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
+    setError('')
+    
     try {
-      // TODO: Add authentication logic here
-      // For now, just navigate to dashboard
+      const response = await authService.login(formData)
+      
+      // Store token in localStorage
+      if (response.token) {
+        localStorage.setItem('token', response.token)
+      }
+      
+      // Redirect to dashboard
       navigate('/dashboard')
-    } catch (error) {
-      console.error('Login error:', error)
+    } catch (err) {
+      console.error('Login error:', err)
+      // Show error message from API response or generic message
+      const errorMessage = err.response?.data?.message || 'Login failed. Please try again.'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -44,6 +61,12 @@ export default function LoginPage() {
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="rounded-md bg-red-50 p-4 border border-red-200">
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </div>
+          )}
+
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
               <label htmlFor="email" className="sr-only">
@@ -82,7 +105,7 @@ export default function LoginPage() {
             disabled={loading}
             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Signing in...' : 'Login'}
           </button>
         </form>
       </div>
