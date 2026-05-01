@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import apiClient from '../services/api'
+import { faqService } from '../services/faqService'
+import FAQFormModal from '../components/FAQFormModal'
 
 export default function FaqManagementPage() {
   const fileInputRef = useRef(null)
@@ -17,9 +19,21 @@ export default function FaqManagementPage() {
   const [documentContent, setDocumentContent] = useState(null)
   const [loadingContent, setLoadingContent] = useState(false)
 
-  // Fetch uploaded documents on mount
+  // FAQ list state
+  const [faqs, setFaqs] = useState([])
+  const [loadingFaqs, setLoadingFaqs] = useState(true)
+  const [faqMessage, setFaqMessage] = useState(null)
+  const [faqMessageType, setFaqMessageType] = useState(null) // 'success' or 'error'
+  
+  // FAQ modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingFaq, setEditingFaq] = useState(null)
+  const [isSubmittingFaq, setIsSubmittingFaq] = useState(false)
+
+  // Fetch data on mount
   useEffect(() => {
     fetchUploadedDocuments()
+    fetchFaqs()
   }, [])
 
   const fetchUploadedDocuments = async () => {
@@ -34,6 +48,81 @@ export default function FaqManagementPage() {
     } finally {
       setLoadingDocuments(false)
     }
+  }
+
+  // FAQ Functions
+  const fetchFaqs = async () => {
+    try {
+      setLoadingFaqs(true)
+      const data = await faqService.getAllFAQs()
+      setFaqs(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error('Error fetching FAQs:', error)
+      setFaqMessage('Failed to load FAQs')
+      setFaqMessageType('error')
+    } finally {
+      setLoadingFaqs(false)
+    }
+  }
+
+  const handleAddFaq = () => {
+    setEditingFaq(null)
+    setIsModalOpen(true)
+  }
+
+  const handleEditFaq = (faq) => {
+    setEditingFaq(faq)
+    setIsModalOpen(true)
+  }
+
+  const handleDeleteFaq = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this FAQ?')) {
+      return
+    }
+    try {
+      await faqService.deleteFAQ(id)
+      setFaqMessage('FAQ deleted successfully!')
+      setFaqMessageType('success')
+      await fetchFaqs()
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || 'Failed to delete FAQ'
+      setFaqMessage(errorMsg)
+      setFaqMessageType('error')
+      console.error('Delete error:', error)
+    }
+  }
+
+  const handleSubmitFaq = async (formData) => {
+    try {
+      setIsSubmittingFaq(true)
+      setFaqMessage(null)
+
+      if (editingFaq) {
+        // Edit existing FAQ
+        await faqService.updateFAQ(editingFaq.id, formData)
+        setFaqMessage('FAQ updated successfully!')
+      } else {
+        // Add new FAQ
+        await faqService.createFAQ(formData)
+        setFaqMessage('FAQ created successfully!')
+      }
+      setFaqMessageType('success')
+      setIsModalOpen(false)
+      setEditingFaq(null)
+      await fetchFaqs()
+    } catch (error) {
+      const errorMsg = error.response?.data?.message || (editingFaq ? 'Failed to update FAQ' : 'Failed to create FAQ')
+      setFaqMessage(errorMsg)
+      setFaqMessageType('error')
+      console.error('Submit error:', error)
+    } finally {
+      setIsSubmittingFaq(false)
+    }
+  }
+
+  const handleCloseFaqModal = () => {
+    setIsModalOpen(false)
+    setEditingFaq(null)
   }
 
   const handleFileSelect = (e) => {
@@ -130,11 +219,119 @@ export default function FaqManagementPage() {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">FAQ Management</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Upload and manage your FAQ documents.
+          Manage your FAQs and upload FAQ documents.
         </p>
       </div>
 
-      {/* Section 1: Upload FAQ Document */}
+      {/* Section 1: FAQ Table */}
+      <div className="bg-white shadow rounded-lg p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-semibold text-gray-900">FAQs</h2>
+          <button
+            onClick={handleAddFaq}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          >
+            + Add FAQ
+          </button>
+        </div>
+
+        {/* FAQ Message */}
+        {faqMessage && (
+          <div
+            className={`rounded-md p-4 mb-4 ${
+              faqMessageType === 'success'
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}
+          >
+            <p
+              className={`text-sm font-medium ${
+                faqMessageType === 'success'
+                  ? 'text-green-800'
+                  : 'text-red-800'
+              }`}
+            >
+              {faqMessage}
+            </p>
+          </div>
+        )}
+
+        {loadingFaqs ? (
+          <div className="flex items-center justify-center py-8">
+            <svg className="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="ml-2 text-gray-600">Loading FAQs...</span>
+          </div>
+        ) : faqs.length === 0 ? (
+          <div className="text-center py-8">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p className="mt-4 text-gray-500">No FAQs yet.</p>
+            <p className="text-sm text-gray-400 mt-1">Create your first FAQ to get started.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Question</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Answer</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Category</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {faqs.map((faq) => (
+                  <tr key={faq.id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm text-gray-900 font-medium max-w-xs truncate">
+                      {faq.question}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-md truncate">
+                      {faq.answer}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600">
+                      <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                        {faq.category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          faq.isActive
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        {faq.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm space-x-2">
+                      <button
+                        onClick={() => handleEditFaq(faq)}
+                        className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-medium transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFaq(faq.id)}
+                        className="inline-block bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-xs font-medium transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Section 2: Upload FAQ Document */}
       <div className="bg-white shadow rounded-lg p-6">
         <h2 className="text-2xl font-semibold text-gray-900 mb-6">Upload FAQ Document</h2>
         
@@ -208,7 +405,7 @@ export default function FaqManagementPage() {
         </form>
       </div>
 
-      {/* Section 2: Uploaded Documents List */}
+      {/* Section 3: Uploaded Documents List */}
       <div className="bg-white shadow rounded-lg p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-gray-900">Uploaded Documents</h2>
@@ -350,6 +547,15 @@ export default function FaqManagementPage() {
           </div>
         </div>
       )}
+
+      {/* FAQ Form Modal */}
+      <FAQFormModal
+        isOpen={isModalOpen}
+        onClose={handleCloseFaqModal}
+        onSubmit={handleSubmitFaq}
+        faqData={editingFaq}
+        isLoading={isSubmittingFaq}
+      />
     </div>
   )
 }
