@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
+import apiClient from '../services/api'
 
 export default function WidgetDemoPage() {
   const [messages, setMessages] = useState([
@@ -10,34 +11,30 @@ export default function WidgetDemoPage() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const messagesEndRef = useRef(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
 
   const handleSendMessage = async (e) => {
     e.preventDefault()
     if (!input.trim()) return
 
-    // Add user message
-    const userMessage = {
-      id: messages.length + 1,
-      type: 'user',
-      text: input
-    }
-    setMessages([...messages, userMessage])
+    const question = input.trim()
+    const userMessage = { id: Date.now(), type: 'user', text: question }
+    setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
 
     try {
-      // TODO: Send message to chatbot API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      // Mock bot response
-      const botMessage = {
-        id: messages.length + 2,
-        type: 'bot',
-        text: 'This is a sample response from the FAQ chatbot.'
-      }
+      const response = await apiClient.post('/chat', { message: question })
+      const answer = response.data?.answer ?? response.data?.message ?? JSON.stringify(response.data)
+      const botMessage = { id: Date.now() + 1, type: 'bot', text: answer }
       setMessages(prev => [...prev, botMessage])
     } catch (error) {
-      console.error('Error sending message:', error)
+      const errText = error.response?.data?.message || 'Something went wrong. Please try again.'
+      setMessages(prev => [...prev, { id: Date.now() + 1, type: 'bot', text: errText }])
     } finally {
       setLoading(false)
     }
@@ -88,6 +85,7 @@ export default function WidgetDemoPage() {
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input Form */}
