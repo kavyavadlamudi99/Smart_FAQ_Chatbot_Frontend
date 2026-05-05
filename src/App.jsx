@@ -5,6 +5,7 @@ import DashboardPage from './pages/DashboardPage'
 import FaqManagementPage from './pages/FaqManagementPage'
 import ChatLogsPage from './pages/ChatLogsPage'
 import WidgetDemoPage from './pages/WidgetDemoPage'
+import EmbedInstructionsPage from './pages/EmbedInstructionsPage'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="faqs" element={<FaqManagementPage />} />
           <Route path="chat-logs" element={<ChatLogsPage />} />
           <Route path="widget-demo" element={<WidgetDemoPage />} />
+          <Route path="embed" element={<EmbedInstructionsPage />} />
         </Route>
       </Routes>
     </Router>

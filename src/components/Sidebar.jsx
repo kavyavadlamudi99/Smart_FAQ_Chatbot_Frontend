@@ -9,6 +9,7 @@ const Sidebar = () => {
     { path: '/faq-management', name: 'FAQ Management', icon: '❓' },
     { path: '/chat-logs', name: 'Chat Logs', icon: '💬' },
     { path: '/widget-preview', name: 'Widget Preview', icon: '🔍' },
+    { path: '/embed', name: 'Embed Widget', icon: '🔗' },
   ]
 
   return (
